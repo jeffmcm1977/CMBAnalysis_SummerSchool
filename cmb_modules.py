@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import astropy.io.fits as fits
 
 
+
 def make_CMB_T_map(N,pix_size,ell,DlTT):
     "makes a realization of a simulated CMB sky map given an input DlTT as a function of ell,"
     "the pixel size (pix_size) required and the number N of pixels in the linear dimension."
@@ -239,14 +240,20 @@ def Filter_Map(Map,N,N_mask):
     ## make a mask
     mask  = np.ones([N,N])
     mask[np.where(np.abs(X) < N_mask)]  = 0
-    
+
+    return apply_filter(Map,mask)
+
+
+def apply_filter(Map,filter2d):
     ## apply the filter in fourier space
     FMap = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(Map)))
-    FMap_filtered = FMap * mask
+    FMap_filtered = FMap * filter2d
     Map_filtered = np.real(np.fft.fftshift(np.fft.fft2(FMap_filtered)))
     
     ## return the output
     return(Map_filtered)
+
+
 
 def cosine_window(N):
     "makes a cosine window for apodizing to avoid edges effects in the 2d FFT" 
@@ -284,7 +291,7 @@ def average_N_spectra(spectra,N_spectra,N_ells):
     
     return(avgSpectra,rmsSpectra)
 
-def calculate_2d_spectrum(Map,delta_ell,ell_max,pix_size,N):
+def calculate_2d_spectrum(Map,delta_ell,ell_max,pix_size,N,Map2=None):
     "calculates the power spectrum of a 2d map by FFTing, squaring, and azimuthally averaging"
     import matplotlib.pyplot as plt
     # make a 2d ell coordinate system
@@ -304,8 +311,11 @@ def calculate_2d_spectrum(Map,delta_ell,ell_max,pix_size,N):
     
     # get the 2d fourier transform of the map
     FMap = np.fft.ifft2(np.fft.fftshift(Map))
+    if Map2 is None: FMap2 = FMap.copy()
+    else: FMap2 = np.fft.ifft2(np.fft.fftshift(Map2))
+    
 #    print FMap
-    PSMap = np.fft.fftshift(np.real(np.conj(FMap) * FMap))
+    PSMap = np.fft.fftshift(np.real(np.conj(FMap) * FMap2))
  #   print PSMap
     # fill out the spectra
     i = 0
