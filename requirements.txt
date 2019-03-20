@@ -1,0 +1,7 @@
+numpy
+matplotlib
+sys
+matplotlib.cm
+matplotlib.mlab
+matplotlib.pyplot
+astropy.io.fits
