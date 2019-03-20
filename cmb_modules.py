@@ -6,85 +6,94 @@ import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
 import astropy.io.fits as fits
 
+
+
 def make_CMB_T_map(N,pix_size,ell,DlTT):
-    import numpy as np
-    import matplotlib
-    import sys
-    import matplotlib.cm as cm
-    import matplotlib.mlab as mlab
-    import matplotlib.pyplot as plt
-    import astropy.io.fits as fits
-
-    "makes a realization of a simulated CMB sky map"
-
-
+    "makes a realization of a simulated CMB sky map given an input DlTT as a function of ell,"
+    "the pixel size (pix_size) required and the number N of pixels in the linear dimension."
+    #np.random.seed(100)
     # convert Dl to Cl
     ClTT = DlTT * 2 * np.pi / (ell*(ell+1.))
-    ClTT[0] = 0.
+    ClTT[0] = 0. # set the monopole and the dipole of the Cl spectrum to zero
     ClTT[1] = 0.
-
-    # make a 2d coordinate system
-    ones = np.ones(N)
-    inds  = (np.arange(N)+.5 - N/2.) /(N-1.)
-    X = np.outer(ones,inds)
+    
+    # make a 2D real space coordinate system
+    onesvec = np.ones(N)
+    inds  = (np.arange(N)+.5 - N/2.) /(N-1.) # create an array of size N between -0.5 and +0.5
+    # compute the outer product matrix: X[i, j] = onesvec[i] * inds[j] for i,j
+    # in range(N), which is just N rows copies of inds - for the x dimension
+    X = np.outer(onesvec,inds)
+    # compute the transpose for the y dimension
     Y = np.transpose(X)
+    # radial component R
     R = np.sqrt(X**2. + Y**2.)
     
-    # now make a 2d CMB power spectrum
-    ell_scale_factor = 2. * np.pi / (pix_size/60. * np.pi/180.)
-    ell2d = R * ell_scale_factor
-    ClTT_expanded = np.zeros(ell2d.max()+1)
-    ClTT_expanded[0:(ClTT.size)] = ClTT
+    # now make a 2D CMB power spectrum
+    pix_to_rad = (pix_size/60. * np.pi/180.) # going from pix_size in arcmins to degrees and then degrees to radians
+    ell_scale_factor = 2. * np.pi /pix_to_rad  # now relating the angular size in radians to multipoles
+    ell2d = R * ell_scale_factor # making a fourier space analogue to the real space R vector
+    ClTT_expanded = np.zeros(int(ell2d.max())+1)
+    # making an expanded Cl spectrum (of zeros) that goes all the way to the size of the 2D ell vector
+    ClTT_expanded[0:(ClTT.size)] = ClTT # fill in the Cls until the max of the ClTT vector
+    
+    # the 2D Cl spectrum is defined on the multiple vector set by the pixel scale
     CLTT2d = ClTT_expanded[ell2d.astype(int)]
-    ## make a plot of the 2d cmb power spectrum, note the x and y axis labels need to be fixed
-    #Plot_CMB_Map(CLTT2d**2. *ell2d * (ell2d+1)/2/np.pi,0,np.max(CLTT2d**2. *ell2d * (ell2d+1)/2/np.pi)/10.,ell2d.max(),ell2d.max())  ###
- 
-    # now make a realization of the CMB with the given power spectrum in fourier space
-    ramdomn_array_for_T = np.fft.fft2(np.random.normal(0,1,(N,N)))    
-    FT_2d = np.sqrt(CLTT2d) * ramdomn_array_for_T
-    ## make a plot of the 2d cmb simulated map in fourier space, note the x and y axis labels need to be fixed
+    #plt.imshow(np.log(CLTT2d))
+    
+    
+    # now make a realization of the CMB with the given power spectrum in real space
+    random_array_for_T = np.random.normal(0,1,(N,N))
+    FT_random_array_for_T = np.fft.fft2(random_array_for_T)   # take FFT since we are in Fourier space
+    
+    FT_2d = np.sqrt(CLTT2d) * FT_random_array_for_T # we take the sqrt since the power spectrum is T^2
+    plt.imshow(np.real(FT_2d))
+    
+    
+    ## make a plot of the 2D cmb simulated map in Fourier space, note the x and y axis labels need to be fixed
     #Plot_CMB_Map(np.real(np.conj(FT_2d)*FT_2d*ell2d * (ell2d+1)/2/np.pi),0,np.max(np.conj(FT_2d)*FT_2d*ell2d * (ell2d+1)/2/np.pi),ell2d.max(),ell2d.max())  ###
-    CMB_T = np.fft.ifft2(np.fft.fftshift(FT_2d)) /(pix_size /60.* np.pi/180.)
+    
+    # move back from ell space to real space
+    CMB_T = np.fft.ifft2(np.fft.fftshift(FT_2d))
+    # move back to pixel space for the map
+    CMB_T = CMB_T/(pix_size /60.* np.pi/180.)
+    # we only want to plot the real component
     CMB_T = np.real(CMB_T)
-
+    
     ## return the map
     return(CMB_T)
-  ###############################
+###############################
+
 def Plot_CMB_Map(Map_to_Plot,c_min,c_max,X_width,Y_width):
     from mpl_toolkits.axes_grid1 import make_axes_locatable
-    import numpy as np
-    import matplotlib
-    import sys
-    import matplotlib.cm as cm
-    import matplotlib.mlab as mlab
-    import matplotlib.pyplot as plt
-    import astropy.io.fits as fits
-
     print("map mean:",np.mean(Map_to_Plot),"map rms:",np.std(Map_to_Plot))
-    plt.figure(figsize=(10,10))
+    plt.gcf().set_size_inches(10, 10)
     im = plt.imshow(Map_to_Plot, interpolation='bilinear', origin='lower',cmap=cm.RdBu_r)
     im.set_clim(c_min,c_max)
     ax=plt.gca()
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.05)
-
+    
     cbar = plt.colorbar(im, cax=cax)
     #cbar = plt.colorbar()
     im.set_extent([0,X_width,0,Y_width])
     plt.ylabel('angle $[^\circ]$')
     plt.xlabel('angle $[^\circ]$')
     cbar.set_label('tempearture [uK]', rotation=270)
+    
     plt.show()
     return(0)
-  ###############################
+###############################
+
 
 def Poisson_source_component(N,pix_size,Number_of_Sources,Amplitude_of_Sources):
-    "makes a realization of a nieve pointsource map"
-    PSMap = np.zeros([N,N])
-    i = 0.
-    while (i < Number_of_Sources):
-        pix_x = N*np.random.rand() 
-        pix_y = N*np.random.rand() 
+    "makes a realization of a naive Poisson-distributed point source map"
+    PSMap = np.zeros([np.int(N),np.int(N)])
+    i = 0
+    print('Number of sources required: ', Number_of_Sources)
+    
+    while (i < int(Number_of_Sources)):
+        pix_x = np.int(N*np.random.rand())
+        pix_y = np.int(N*np.random.rand())
         PSMap[pix_x,pix_y] += np.random.poisson(Amplitude_of_Sources)
         i = i + 1
 
@@ -92,12 +101,13 @@ def Poisson_source_component(N,pix_size,Number_of_Sources,Amplitude_of_Sources):
   ############################### 
 
 def Exponential_source_component(N,pix_size,Number_of_Sources_EX,Amplitude_of_Sources_EX):
-    "makes a realization of a nieve pointsource map"
+    N=int(N)
+    "makes a realization of a naive exponentially-distributed point source map"
     PSMap = np.zeros([N,N])
-    i = 0.
+    i = 0
     while (i < Number_of_Sources_EX):
-        pix_x = N*np.random.rand() 
-        pix_y = N*np.random.rand() 
+        pix_x = int(N*np.random.rand() )
+        pix_y = int(N*np.random.rand()) 
         PSMap[pix_x,pix_y] += np.random.exponential(Amplitude_of_Sources_EX)
         i = i + 1
 
@@ -106,13 +116,14 @@ def Exponential_source_component(N,pix_size,Number_of_Sources_EX,Amplitude_of_So
 
 def SZ_source_component(N,pix_size,Number_of_SZ_Clusters,Mean_Amplitude_of_SZ_Clusters,SZ_beta,SZ_Theta_core,do_plots):
     "makes a realization of a nieve SZ map"
+    N=int(N)
     SZMap = np.zeros([N,N])
     SZcat = np.zeros([3,Number_of_SZ_Clusters]) ## catalogue of SZ sources, X, Y, amplitude
     # make a distribution of point sources with varying amplitude
-    i = 0.
+    i = 0
     while (i < Number_of_SZ_Clusters):
-        pix_x = N*np.random.rand() 
-        pix_y = N*np.random.rand() 
+        pix_x = np.int(N*np.random.rand())
+        pix_y = np.int(N*np.random.rand() )
         pix_amplitude = np.random.exponential(Mean_Amplitude_of_SZ_Clusters)*(-1.)
         SZcat[0,i] = pix_x
         SZcat[1,i] = pix_y
@@ -140,6 +151,7 @@ def SZ_source_component(N,pix_size,Number_of_SZ_Clusters,Mean_Amplitude_of_SZ_Cl
 
 def beta_function(N,pix_size,SZ_beta,SZ_Theta_core):
   # make a beta function
+    N=int(N)
     ones = np.ones(N)
     inds  = (np.arange(N)+.5 - N/2.) * pix_size
     X = np.outer(ones,inds)
@@ -168,6 +180,7 @@ def convolve_map_with_gaussian_beam(N,pix_size,beam_size_fwhp,Map):
 
 def make_2d_gaussian_beam(N,pix_size,beam_size_fwhp):
      # make a 2d coordinate system
+    N=int(N)
     ones = np.ones(N)
     inds  = (np.arange(N)+.5 - N/2.) * pix_size
     X = np.outer(ones,inds)
@@ -183,56 +196,64 @@ def make_2d_gaussian_beam(N,pix_size,beam_size_fwhp):
     return(gaussian)
   ###############################  
 
-def make_noise_map(N,pix_size,white_noise_level,atnospheric_noise_level,one_over_f_noise_level):
-    "makes a realization of instrument noise, atnospher and 1/f noise level set at 1 degrees"
+def make_noise_map(N,pix_size,white_noise_level,atmospheric_noise_level,one_over_f_noise_level):
+    "makes a realization of instrument noise, atmosphere and 1/f noise level set at 1 degrees"
     ## make a white noise map
+    N=int(N)
     white_noise = np.random.normal(0,1,(N,N)) * white_noise_level/pix_size
  
-    ## make an atnosperhic noise map
-    atnospheric_noise = 0.
-    if (atnospheric_noise_level != 0):
+    ## make an atmosperhic noise map
+    atmospheric_noise = 0.
+    if (atmospheric_noise_level != 0):
         ones = np.ones(N)
         inds  = (np.arange(N)+.5 - N/2.) 
         X = np.outer(ones,inds)
         Y = np.transpose(X)
-        R = np.sqrt(X**2. + Y**2.) * pix_size /60. ## angles realative to 1 degrees  
+        R = np.sqrt(X**2. + Y**2.) * pix_size /60. ## angles relative to 1 degrees  
         mag_k = 2 * np.pi/(R+.01)  ## 0.01 is a regularizaiton factor
-        atnospheric_noise = np.fft.fft2(np.random.normal(0,1,(N,N)))
-        atnospheric_noise  = np.fft.ifft2(atnospheric_noise * np.fft.fftshift(mag_k**(5/3.)))* atnospheric_noise_level/pix_size
+        atmospheric_noise = np.fft.fft2(np.random.normal(0,1,(N,N)))
+        atmospheric_noise  = np.fft.ifft2(atmospheric_noise * np.fft.fftshift(mag_k**(5/3.)))* atmospheric_noise_level/pix_size
 
     ## make a 1/f map, along a single direction to illustrate striping 
     oneoverf_noise = 0.
     if (one_over_f_noise_level != 0): 
         ones = np.ones(N)
         inds  = (np.arange(N)+.5 - N/2.) 
-        X = np.outer(ones,inds) * pix_size /60. ## angles realative to 1 degrees 
+        X = np.outer(ones,inds) * pix_size /60. ## angles relative to 1 degrees 
         kx = 2 * np.pi/(X+.01) ## 0.01 is a regularizaiton factor
         oneoverf_noise = np.fft.fft2(np.random.normal(0,1,(N,N)))
         oneoverf_noise = np.fft.ifft2(oneoverf_noise * np.fft.fftshift(kx))* one_over_f_noise_level/pix_size
 
     ## return the noise map
-    noise_map = np.real(white_noise + atnospheric_noise + oneoverf_noise)
+    noise_map = np.real(white_noise + atmospheric_noise + oneoverf_noise)
     return(noise_map)
   ###############################
 def Filter_Map(Map,N,N_mask):
+    N=int(N)
     ## set up a x, y, and r coordinates for mask generation
     ones = np.ones(N)
     inds  = (np.arange(N)+.5 - N/2.) 
     X = np.outer(ones,inds)
     Y = np.transpose(X)
-    R = np.sqrt(X**2. + Y**2.)  ## angles realative to 1 degrees  
+    R = np.sqrt(X**2. + Y**2.)  ## angles relative to 1 degrees  
     
     ## make a mask
     mask  = np.ones([N,N])
     mask[np.where(np.abs(X) < N_mask)]  = 0
-    
+
+    return apply_filter(Map,mask)
+
+
+def apply_filter(Map,filter2d):
     ## apply the filter in fourier space
     FMap = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(Map)))
-    FMap_filtered = FMap * mask
+    FMap_filtered = FMap * filter2d
     Map_filtered = np.real(np.fft.fftshift(np.fft.fft2(FMap_filtered)))
     
     ## return the output
     return(Map_filtered)
+
+
 
 def cosine_window(N):
     "makes a cosine window for apodizing to avoid edges effects in the 2d FFT" 
@@ -270,10 +291,11 @@ def average_N_spectra(spectra,N_spectra,N_ells):
     
     return(avgSpectra,rmsSpectra)
 
-def calculate_2d_spectrum(Map,delta_ell,ell_max,pix_size,N):
-    "calcualtes the power spectrum of a 2d map by FFTing, squaring, and azimuthally averaging"
+def calculate_2d_spectrum(Map,delta_ell,ell_max,pix_size,N,Map2=None):
+    "calculates the power spectrum of a 2d map by FFTing, squaring, and azimuthally averaging"
     import matplotlib.pyplot as plt
     # make a 2d ell coordinate system
+    N=int(N)
     ones = np.ones(N)
     inds  = (np.arange(N)+.5 - N/2.) /(N-1.)
     kX = np.outer(ones,inds) / (pix_size/60. * np.pi/180.)
@@ -289,8 +311,11 @@ def calculate_2d_spectrum(Map,delta_ell,ell_max,pix_size,N):
     
     # get the 2d fourier transform of the map
     FMap = np.fft.ifft2(np.fft.fftshift(Map))
+    if Map2 is None: FMap2 = FMap.copy()
+    else: FMap2 = np.fft.ifft2(np.fft.fftshift(Map2))
+    
 #    print FMap
-    PSMap = np.fft.fftshift(np.real(np.conj(FMap) * FMap))
+    PSMap = np.fft.fftshift(np.real(np.conj(FMap) * FMap2))
  #   print PSMap
     # fill out the spectra
     i = 0
