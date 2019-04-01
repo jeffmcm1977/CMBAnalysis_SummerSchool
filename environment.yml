@@ -2,6 +2,6 @@ name: healpy-environment
 channels:
   - conda-forge
 dependencies:
-  - healpy
+  - healpy=1.12.9
   - scipy
-  - camb
+  - camb=0.1.8.1
