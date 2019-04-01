@@ -1,0 +1,7 @@
+name: healpy-environment
+channels:
+  - conda-forge
+dependencies:
+  - healpy
+  - scipy
+  - camb
