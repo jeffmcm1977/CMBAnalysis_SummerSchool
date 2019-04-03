@@ -4,4 +4,6 @@ channels:
 dependencies:
   - healpy=1.12.9
   - scipy
-  - camb=0.1.8.1
+  - gfortran_linux-64
+  - pip:
+    - camb
