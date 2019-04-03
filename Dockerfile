@@ -15,7 +15,8 @@ RUN adduser --disabled-password \
 COPY . ${HOME}
 USER root
 
-WORKDIR ${HOME}
+RUN conda install -c conda-forge --yes jupyterlab \
+ && conda clean --yes -i -t -l -s -p
 
 RUN pip install camb
 
