@@ -1,9 +1,0 @@
-name: healpy-environment
-channels:
-  - conda-forge
-dependencies:
-  - healpy=1.12.9
-  - scipy
-  - gfortran_linux-64
-  - pip:
-    - camb
