@@ -46,7 +46,7 @@ def make_CMB_T_map(N,pix_size,ell,DlTT):
     FT_random_array_for_T = np.fft.fft2(random_array_for_T)   # take FFT since we are in Fourier space
     
     FT_2d = np.sqrt(CLTT2d) * FT_random_array_for_T # we take the sqrt since the power spectrum is T^2
-    plt.imshow(np.real(FT_2d))
+    #plt.imshow(np.real(FT_2d))
     
     
     ## make a plot of the 2D cmb simulated map in Fourier space, note the x and y axis labels need to be fixed
