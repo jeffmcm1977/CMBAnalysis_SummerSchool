@@ -2,8 +2,9 @@
 
 from __future__ import print_function
 import numpy as np
-import healpy as hp 
+#import healpy as hp 
 
+from pixell import enmap,curvedsky,reproject
 
 import numpy as np
 import os,sys
@@ -100,8 +101,13 @@ def syncxdust_Cls(mapType1,mapType2,correlationCoef=-.1,synchrotron_fnc=synchrot
     return correlationCoef*cl11*cl22
 
 
+def gauss_beam(ell,fwhm_arcmin):
+    tht_fwhm = np.deg2rad(fwhm_arcmin / 60.)
+    return np.exp(-(tht_fwhm**2.)*(ell**2.) / (16.*np.log(2.)))
+
+
 class simple_sky_model:
-    def __init__(self,camb_file='./CMB_fiducial_totalCls.dat',seed=1,nside=512):
+    def __init__(self,camb_file='./CMB_fiducial_totalCls.dat',seed=1,pixRes_arcmin=4,lmax_sim=500):
 
 
 
@@ -116,21 +122,41 @@ class simple_sky_model:
         cl_te = np.append([0,0],cl_te)
         ells = np.append([0,1],cls_camb[0])
 
-        self.nside=nside
+        self.pixRes_arcmin=pixRes_arcmin/180./60*np.pi
+        self.lmax_sim = lmax_sim
 
+        shape,wcs = enmap.fullsky_geometry(self.pixRes_arcmin,dims=(2,))
 
         np.random.seed(seed)
+        self.shape = shape
+        self.wcs = wcs
 
-        self.alm_cmb_E = hp.synalm(cl_ee,lmax=3*nside-1,new=True)
-        self.alm_cmb_B = hp.synalm(cl_bb,lmax=3*nside-1,new=True)
-        _,self.Q_cmb,self.U_cmb = hp.alm2map([self.alm_cmb_E.copy()*0,self.alm_cmb_E,self.alm_cmb_B],nside,verbose=False)
-        alm_sync_E,alm_dust_E = hp.synalm([synchrotron_Cl('E','E'),galaticDust_Cl('E','E'),0*2*syncxdust_Cls('E','E')],new=True,lmax=3*nside)
-        alm_sync_B,alm_dust_B = hp.synalm([synchrotron_Cl('B','B'),galaticDust_Cl('B','B'),0*2*syncxdust_Cls('B','B')],new=True,lmax=3*nside)
+        self.alm_cmb_E = curvedsky.rand_alm(cl_ee,lmax=lmax_sim)#hp.synalm(cl_ee,lmax=3*nside-1,new=True)
+        self.alm_cmb_B = curvedsky.rand_alm(cl_bb,lmax=lmax_sim)#hp.synalm(cl_bb,lmax=3*nside-1,new=True)
+        tmp_empty = enmap.empty(shape,wcs)
+        self.Q_cmb,self.U_cmb = curvedsky.alm2map(np.array([self.alm_cmb_E,self.alm_cmb_B]),tmp_empty,spin=[2])
 
-        _,self.Q_dust,self.U_dust = hp.alm2map([alm_dust_E.copy()*0,alm_dust_E,alm_dust_B],nside,verbose=False)
+        ps = np.zeros([2,2,lmax_sim])
+        ps[0,0] = synchrotron_Cl('E','E')[:lmax_sim]
+        ps[1,1] = galaticDust_Cl('E','E')[:lmax_sim]
+        ps[1,0] = syncxdust_Cls('E','E')[:lmax_sim]
+
+        self.alm_sync_E,self.alm_dust_E = curvedsky.rand_alm(ps,lmax=lmax_sim)
+
+        ps = np.zeros([2,2,lmax_sim])
+        ps[0,0] = synchrotron_Cl('B','B')[:lmax_sim]
+        ps[1,1] = galaticDust_Cl('B','B')[:lmax_sim]
+        ps[1,0] = syncxdust_Cls('B','B')[:lmax_sim]
+
+        self.alm_sync_B,self.alm_dust_B = curvedsky.rand_alm(ps,lmax=lmax_sim)
 
 
-        _,self.Q_sync,self.U_sync = hp.alm2map([alm_sync_E.copy()*0,alm_sync_E,alm_sync_B],nside,verbose=False)
+        tmp_empty = enmap.empty(shape,wcs)
+        self.Q_dust,self.U_dust = curvedsky.alm2map(np.array([self.alm_dust_E,self.alm_dust_B]),tmp_empty,spin=[2])
+
+
+        tmp_empty = enmap.empty(shape,wcs)
+        self.Q_sync,self.U_sync = curvedsky.alm2map(np.array([self.alm_sync_E,self.alm_sync_B]),tmp_empty,spin=[2])
 
 
     def observe(self,freq_GHz,noise_ukarcmin=3.,beam_fwhm_arcmin=8.):
@@ -138,12 +164,15 @@ class simple_sky_model:
 
         #np.random.seed(213114124+int(freq_GHz))
 
-        beam = hp.gauss_beam(beam_fwhm_arcmin*(np.pi/60./180),lmax=3*self.nside)
+
+        beam = gauss_beam(np.arange(self.lmax_sim+10),beam_fwhm_arcmin)#hp.gauss_beam(beam_fwhm_arcmin*(np.pi/60./180),lmax=3*self.nside)
         beam[beam==0] = np.inf
         beam = 1/beam
-        Q_noise = np.sqrt(2)*noise_ukarcmin*(np.pi/180/60)*hp.synfast(beam**2,self.nside,verbose=False)
-        U_noise = np.sqrt(2)*noise_ukarcmin*(np.pi/180/60)*hp.synfast(beam**2,self.nside,verbose=False)
 
+        shape,wcs = enmap.fullsky_geometry(self.pixRes_arcmin)
+
+        Q_noise = np.sqrt(2)*noise_ukarcmin*(np.pi/180/60)*curvedsky.rand_map(shape, wcs, beam**2)
+        U_noise = np.sqrt(2)*noise_ukarcmin*(np.pi/180/60)*curvedsky.rand_map(shape, wcs, beam**2)
         Q_map =  self.Q_cmb.copy()
         Q_map += Q_noise
         Q_map += self.Q_dust*galaticDust_SED(freq_GHz,in_uk=True)
@@ -157,15 +186,28 @@ class simple_sky_model:
 
         return Q_map,U_map
 
-    def get_true_alms(self):
+    def get_input_cmb_alms(self):
         """
         Get the exact realization of the CMB EE and BB present in the sky (sadly not directly accessible in reality)!
         """
         return self.alm_cmb_E,self.alm_cmb_B
 
 
+    def get_input_dust_alms(self):
+        """
+        Get the exact realization of the CMB EE and BB present in the sky (sadly not directly accessible in reality)!
+        """
+        return self.alm_dust_E,self.alm_dust_B
+
+
+    def get_input_sync_alms(self):
+        """
+        Get the exact realization of the CMB EE and BB present in the sky (sadly not directly accessible in reality)!
+        """
+        return self.alm_sync_E,self.alm_sync_B
+
 class pysm_sky_model:
-    def __init__(self,camb_file='./CMB_fiducial_totalCls.dat',seed=1,nside=512):
+    def __init__(self,camb_file='./CMB_fiducial_totalCls.dat',seed=1,pixRes_arcmin=2.,lmax_sim=500,nside_pysm=512):
 
         cls_camb = np.loadtxt(camb_file,unpack=True)
         cl_tt = cls_camb[1]/(cls_camb[0]*(cls_camb[0]+1)/2/np.pi)
@@ -178,15 +220,20 @@ class pysm_sky_model:
         cl_te = np.append([0,0],cl_te)
         ells = np.append([0,1],cls_camb[0])
 
-        self.nside=nside
+        self.pixRes_arcmin=pixRes_arcmin/180./60*np.pi
+        self.lmax_sim = lmax_sim
 
-
+        shape,wcs = enmap.fullsky_geometry(self.pixRes_arcmin,dims=(2,))
+        self.shape = shape
+        self.wcs = wcs
         np.random.seed(seed)
 
-        self.alm_cmb_E = hp.synalm(cl_ee,lmax=3*nside-1,new=True)
-        self.alm_cmb_B = hp.synalm(cl_bb,lmax=3*nside-1,new=True)
-        _,self.Q_cmb,self.U_cmb = hp.alm2map([self.alm_cmb_E.copy()*0,self.alm_cmb_E,self.alm_cmb_B],nside,verbose=False)
+        self.nside_pysm =nside_pysm
 
+        self.alm_cmb_E = curvedsky.rand_alm(cl_ee,lmax=lmax_sim)#hp.synalm(cl_ee,lmax=3*nside-1,new=True)
+        self.alm_cmb_B = curvedsky.rand_alm(cl_bb,lmax=lmax_sim)#hp.synalm(cl_bb,lmax=3*nside-1,new=True)
+        tmp_empty = enmap.empty(shape,wcs)
+        self.Q_cmb,self.U_cmb = curvedsky.alm2map(np.array([self.alm_cmb_E,self.alm_cmb_B]),tmp_empty,spin=[2])
 
     def observe(self,freq_GHz,noise_ukarcmin=3.,beam_fwhm_arcmin=8.):
 
@@ -194,24 +241,30 @@ class pysm_sky_model:
         import pysm3.units as u
         #np.random.seed(213114124+int(freq_GHz))
 
-        beam = hp.gauss_beam(beam_fwhm_arcmin*(np.pi/60./180),lmax=3*self.nside)
+        beam = gauss_beam(np.arange(self.lmax_sim+10),beam_fwhm_arcmin)#hp.gauss_beam(beam_fwhm_arcmin*(np.pi/60./180),lmax=3*self.nside)
         beam[beam==0] = np.inf
         beam = 1/beam
-        Q_noise = np.sqrt(2)*noise_ukarcmin*(np.pi/180/60)*hp.synfast(beam**2,self.nside,verbose=False)
-        U_noise = np.sqrt(2)*noise_ukarcmin*(np.pi/180/60)*hp.synfast(beam**2,self.nside,verbose=False)
 
-        sky = pysm3.Sky(nside=self.nside,preset_strings=["d1","s1"],output_unit="K_CMB")
+        shape,wcs = enmap.fullsky_geometry(self.pixRes_arcmin)
+
+        Q_noise = np.sqrt(2)*noise_ukarcmin*(np.pi/180/60)*curvedsky.rand_map(shape, wcs, beam**2)
+        U_noise = np.sqrt(2)*noise_ukarcmin*(np.pi/180/60)*curvedsky.rand_map(shape, wcs, beam**2)
+
+        sky = pysm3.Sky(nside=self.nside_pysm,preset_strings=["d1","s1"],output_unit="K_CMB")
         # Get the map at the desired frequency:
         I,Q_foreground,U_foreground = sky.get_emission(freq_GHz*u.GHz)*1e6
 
+        I,Q_foreground,U_foreground = reproject.enmap_from_healpix([I,Q_foreground,U_foreground], shape, wcs,
+                                  ncomp=3, unit=1, lmax=self.lmax_sim,rot=None)
+
         Q_map =  self.Q_cmb.copy()
         Q_map += Q_noise
-        Q_map += Q_foreground.value
+        Q_map += Q_foreground
 
 
         U_map =  self.U_cmb.copy()
         U_map += U_noise
-        U_map += U_foreground.value
+        U_map += U_foreground
 
         return Q_map,U_map
 
