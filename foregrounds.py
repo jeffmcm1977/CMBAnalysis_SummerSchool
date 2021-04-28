@@ -49,7 +49,7 @@ def galaticDust_SED(freq_GHz,beta_d=1.48,t_d=19.6,freq_GHz_0=150,**kwargs):
         return greyBody(freq_GHz, beta=beta_d,T_d=t_d)*2.7255e6
 
 
-def galaticDust_Cl(mapType1,mapType2,a_d_t=1e3,a_d_e=205.,a_d_b=120.,n_d_t=-2.7,n_d_e=-2.43,n_d_b=-2.48,scalePol=1.e-2,chi_d=.3,lmax=8000,**kwargs):
+def galaticDust_Cl(mapType1,mapType2,a_d_t=3e3,a_d_e=205.,a_d_b=120.,n_d_t=-2.7,n_d_e=-2.43,n_d_b=-2.48,scalePol=1.e-2,chi_d=.3,lmax=8000,**kwargs):
     ls = np.arange(lmax)+1e-3
     if mapType1=='E' and mapType2=='E':
         cls_tmp = 1*np.abs(a_d_e)*scalePol*(ls/100.)**n_d_e/galaticDust_SED(None,in_uk=True,**kwargs)**2/100**2*2*np.pi
@@ -92,7 +92,6 @@ def synchrotron_Cl(mapType1,mapType2,a_s_t=3.e5,a_s_e=1000.,a_s_b=500.,n_s_t=-2.
     else:
         cls_tmp= ls*0
     cls_tmp[:2]=0
-    print(cls_tmp[:10])
     return cls_tmp
 
 
@@ -132,7 +131,7 @@ class simple_sky_model:
 
         #pmap = enmap.enmap(shape,wcs).pixsizemap()
         opos = enmap.posmap(shape, wcs)
-        galShape = 1/(np.abs(opos[0])+1e-1)**.5
+        galShape = 1/(np.abs(opos[0])+1e-1)
         galShape/=np.mean(galShape**2)**.5
 
 
@@ -233,7 +232,7 @@ class simple_sky_model_pol:
 
 
         opos = enmap.posmap(shape, wcs)
-        galShape = 1/(np.abs(opos[0])+1e-1)**.5
+        galShape = 1/(np.abs(opos[0])+1e-1)
         galShape/=np.mean(galShape**2)**.5
 
 
