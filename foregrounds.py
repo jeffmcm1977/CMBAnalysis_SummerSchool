@@ -178,6 +178,7 @@ class simple_sky_model:
         beam = gauss_beam(np.arange(self.lmax_sim+10),beam_fwhm_arcmin)#hp.gauss_beam(beam_fwhm_arcmin*(np.pi/60./180),lmax=3*self.nside)
         beam[beam==0] = np.inf
         beam = 1/beam
+        beam[beam>1e8] = 1e8
 
         shape,wcs = enmap.fullsky_geometry(self.pixRes_arcmin)
 
@@ -363,6 +364,7 @@ class pysm_sky_model:
         beam = gauss_beam(np.arange(self.lmax_sim+10),beam_fwhm_arcmin)#hp.gauss_beam(beam_fwhm_arcmin*(np.pi/60./180),lmax=3*self.nside)
         beam[beam==0] = np.inf
         beam = 1/beam
+        beam[beam>1e8] = 1e8
 
         shape,wcs = enmap.fullsky_geometry(self.pixRes_arcmin)
 
