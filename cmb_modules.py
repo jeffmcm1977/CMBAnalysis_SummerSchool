@@ -76,8 +76,8 @@ def Plot_CMB_Map(Map_to_Plot,c_min,c_max,X_width,Y_width):
     cbar = plt.colorbar(im, cax=cax)
     #cbar = plt.colorbar()
     im.set_extent([0,X_width,0,Y_width])
-    plt.ylabel('angle $[^\circ]$')
-    plt.xlabel('angle $[^\circ]$')
+    plt.ylabel(r'angle $[^\circ]$')
+    plt.xlabel(r'angle $[^\circ]$')
     cbar.set_label('tempearture [uK]', rotation=270)
     
     plt.show()
@@ -87,13 +87,13 @@ def Plot_CMB_Map(Map_to_Plot,c_min,c_max,X_width,Y_width):
 
 def Poisson_source_component(N,pix_size,Number_of_Sources,Amplitude_of_Sources):
     "makes a realization of a naive Poisson-distributed point source map"
-    PSMap = np.zeros([np.int(N),np.int(N)])
+    PSMap = np.zeros([int(N),int(N)])
     i = 0
     print('Number of sources required: ', Number_of_Sources)
     
     while (i < int(Number_of_Sources)):
-        pix_x = np.int(N*np.random.rand())
-        pix_y = np.int(N*np.random.rand())
+        pix_x = int(N*np.random.rand())
+        pix_y = int(N*np.random.rand())
         PSMap[pix_x,pix_y] += np.random.poisson(Amplitude_of_Sources)
         i = i + 1
 
@@ -122,8 +122,8 @@ def SZ_source_component(N,pix_size,Number_of_SZ_Clusters,Mean_Amplitude_of_SZ_Cl
     # make a distribution of point sources with varying amplitude
     i = 0
     while (i < Number_of_SZ_Clusters):
-        pix_x = np.int(N*np.random.rand())
-        pix_y = np.int(N*np.random.rand() )
+        pix_x = int(N*np.random.rand())
+        pix_y = int(N*np.random.rand() )
         pix_amplitude = np.random.exponential(Mean_Amplitude_of_SZ_Clusters)*(-1.)
         SZcat[0,i] = pix_x
         SZcat[1,i] = pix_y
@@ -133,7 +133,7 @@ def SZ_source_component(N,pix_size,Number_of_SZ_Clusters,Mean_Amplitude_of_SZ_Cl
     if (do_plots):
         hist,bin_edges = np.histogram(SZMap,bins = 50,range=[SZMap.min(),-10])
         plt.semilogy(bin_edges[0:-1],hist)
-        plt.xlabel('source amplitude [$\mu$K]')
+        plt.xlabel(r'source amplitude [$\mu$K]')
         plt.ylabel('number or pixels')
         plt.show()
     
