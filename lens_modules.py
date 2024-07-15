@@ -108,3 +108,14 @@ def sky2pix(pos,N,pix_size):
     py = dec/pix_size + N//2 + 0.5
     px = ra/pix_size + N//2 + 0.5
     return np.stack([py,px])
+
+def get_theory():
+    ells,tt,_,_,pp,_ = np.loadtxt("CAMB_fiducial_cosmo_scalCls.dat",unpack=True)
+    TCMB2 = 7.4311e12
+    ckk = pp/4./TCMB2
+    ucltt = tt / ells/(ells+1.)*2.*np.pi
+    ells2,lcltt = np.loadtxt("CMB_fiducial_totalCls.dat",unpack=True,usecols=[0,1])
+    lcltt = lcltt / ells2/(ells2+1.)*2.*np.pi
+    lcltt = lcltt[:len(ells)]
+    return ells,ucltt,lcltt,ckk
+

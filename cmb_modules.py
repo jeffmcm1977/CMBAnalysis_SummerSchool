@@ -291,11 +291,11 @@ def average_N_spectra(spectra,N_spectra,N_ells):
     
     return(avgSpectra,rmsSpectra)
 
-def calculate_2d_spectrum(Map,delta_ell,ell_max,pix_size,N,Map2=None):
-    "calculates the power spectrum of a 2d map by FFTing, squaring, and azimuthally averaging"
-    import matplotlib.pyplot as plt
-    # make a 2d ell coordinate system
+
+def calculate_2d_spectrum(Map1,Map2,delta_ell,ell_max,pix_size,N):
+    "calcualtes the power spectrum of a 2d map by FFTing, squaring, and azimuthally averaging"
     N=int(N)
+    # make a 2d ell coordinate system
     ones = np.ones(N)
     inds  = (np.arange(N)+.5 - N/2.) /(N-1.)
     kX = np.outer(ones,inds) / (pix_size/60. * np.pi/180.)
@@ -310,23 +310,42 @@ def calculate_2d_spectrum(Map,delta_ell,ell_max,pix_size,N,Map2=None):
     CL_array = np.zeros(N_bins)
     
     # get the 2d fourier transform of the map
-    FMap = np.fft.ifft2(np.fft.fftshift(Map))
-    if Map2 is None: FMap2 = FMap.copy()
-    else: FMap2 = np.fft.ifft2(np.fft.fftshift(Map2))
-    
-#    print FMap
-    PSMap = np.fft.fftshift(np.real(np.conj(FMap) * FMap2))
- #   print PSMap
+    FMap1 = np.fft.ifft2(np.fft.fftshift(Map1))
+    FMap2 = np.fft.ifft2(np.fft.fftshift(Map2))
+    PSMap = np.fft.fftshift(np.real(np.conj(FMap1) * FMap2))
     # fill out the spectra
     i = 0
     while (i < N_bins):
         ell_array[i] = (i + 0.5) * delta_ell
         inds_in_bin = ((ell2d >= (i* delta_ell)) * (ell2d < ((i+1)* delta_ell))).nonzero()
         CL_array[i] = np.mean(PSMap[inds_in_bin])
+        #print i, ell_array[i], inds_in_bin, CL_array[i]
         i = i + 1
-
-
-    CL_array_new = CL_array[~np.isnan(CL_array)]
-    ell_array_new = ell_array[~np.isnan(CL_array)]
+ 
     # return the power spectrum and ell bins
-    return(ell_array_new,CL_array_new*np.sqrt(pix_size /60.* np.pi/180.)*2.)
+    return(ell_array,CL_array*np.sqrt(pix_size /60.* np.pi/180.)*2.)
+
+
+
+
+def Plot_CMB_Lensing_Map(Map_to_Plot,X_width,Y_width):
+    c_max = np.max(Map_to_Plot)
+    c_min = np.min(Map_to_Plot)
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+    print("map mean:",np.mean(Map_to_Plot),"map rms:",np.std(Map_to_Plot))
+    plt.gcf().set_size_inches(10, 10)
+    im = plt.imshow(Map_to_Plot, interpolation='bilinear', origin='lower',cmap="gray")
+    im.set_clim(c_min,c_max)
+    ax=plt.gca()
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    
+    cbar = plt.colorbar(im, cax=cax)
+    #cbar = plt.colorbar()
+    im.set_extent([0,X_width,0,Y_width])
+    plt.ylabel('angle $[^\circ]$')
+    plt.xlabel('angle $[^\circ]$')
+    cbar.set_label('Kappa [arb]', rotation=270)
+    
+    plt.show()
+    return(0)
