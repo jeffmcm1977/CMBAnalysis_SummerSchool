@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 # We use some stuff we learned before
-from cmb_modules import calculate_2d_spectrum,make_CMB_T_map
+import cmb_modules
 
 # We need to load the theory spectra
 def get_theory():
@@ -20,10 +20,10 @@ def get_lensed(patch_deg_width,pix_size,ells,ucltt,clkk):
     N = int(patch_deg_width*60./pix_size)
     # We next generate an unlensed CMB map as a Gaussian random field as we learned before
     DlTT = ucltt*ells*(ells+1.)/2./np.pi
-    unlensed = make_CMB_T_map(N,pix_size,ells,DlTT)
+    unlensed = cmb_modules.make_CMB_T_map(N,pix_size,ells,DlTT)
     # We also need a lensing convergence (kappa) map
     DlKK = clkk*ells*(ells+1.)/2./np.pi
-    kappa = make_CMB_T_map(N,pix_size,ells,DlKK)
+    kappa = cmb_modules.make_CMB_T_map(N,pix_size,ells,DlKK)
     # We get the Fourier coordinates
     ly,lx,modlmap = get_ells(N,pix_size)
 
