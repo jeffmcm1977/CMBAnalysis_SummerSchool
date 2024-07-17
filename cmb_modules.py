@@ -18,13 +18,8 @@ def make_CMB_T_map(N,pix_size,ell,DlTT):
     ClTT[1] = 0.
     
     # make a 2D real space coordinate system
-    onesvec = np.ones(N)
-    inds  = (np.arange(N)+.5 - N/2.) /(N-1.) # create an array of size N between -0.5 and +0.5
-    # compute the outer product matrix: X[i, j] = onesvec[i] * inds[j] for i,j
-    # in range(N), which is just N rows copies of inds - for the x dimension
-    X = np.outer(onesvec,inds)
-    # compute the transpose for the y dimension
-    Y = np.transpose(X)
+    inds = np.linspace(-0.5, 0.5, N)
+    X, Y = np.meshgrid(inds, inds)
     # radial component R
     R = np.sqrt(X**2. + Y**2.)
     
@@ -55,13 +50,13 @@ def make_CMB_T_map(N,pix_size,ell,DlTT):
     # move back from ell space to real space
     CMB_T = np.fft.ifft2(np.fft.fftshift(FT_2d))
     # move back to pixel space for the map
-    CMB_T = CMB_T/(pix_size /60.* np.pi/180.)
+    CMB_T = CMB_T/pix_to_rad
     # we only want to plot the real component
     CMB_T = np.real(CMB_T)
     
     ## return the map
-    return(CMB_T)
-###############################
+    return CMB_T
+
 
 def Plot_CMB_Map(Map_to_Plot,c_min,c_max,X_width,Y_width):
     from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -69,20 +64,16 @@ def Plot_CMB_Map(Map_to_Plot,c_min,c_max,X_width,Y_width):
     plt.gcf().set_size_inches(10, 10)
     im = plt.imshow(Map_to_Plot, interpolation='bilinear', origin='lower',cmap=cm.RdBu_r)
     im.set_clim(c_min,c_max)
-    ax=plt.gca()
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="5%", pad=0.05)
-    
-    cbar = plt.colorbar(im, cax=cax)
-    #cbar = plt.colorbar()
     im.set_extent([0,X_width,0,Y_width])
     plt.ylabel(r'angle $[^\circ]$')
     plt.xlabel(r'angle $[^\circ]$')
-    cbar.set_label('tempearture [uK]', rotation=270)
-    
+
+    ax=plt.gca()
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)    
+    cbar = plt.colorbar(im, cax=cax, label="Temperature [uK]")
+
     plt.show()
-    return(0)
-###############################
 
 
 def Poisson_source_component(N,pix_size,Number_of_Sources,Amplitude_of_Sources):
@@ -336,16 +327,13 @@ def Plot_CMB_Lensing_Map(Map_to_Plot,X_width,Y_width):
     plt.gcf().set_size_inches(10, 10)
     im = plt.imshow(Map_to_Plot, interpolation='bilinear', origin='lower',cmap="gray")
     im.set_clim(c_min,c_max)
+    im.set_extent([0,X_width,0,Y_width])
+    plt.ylabel(r'angle $[^\circ]$')
+    plt.xlabel(r'angle $[^\circ]$')
+
     ax=plt.gca()
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.05)
-    
-    cbar = plt.colorbar(im, cax=cax)
-    #cbar = plt.colorbar()
-    im.set_extent([0,X_width,0,Y_width])
-    plt.ylabel('angle $[^\circ]$')
-    plt.xlabel('angle $[^\circ]$')
-    cbar.set_label('Kappa [arb]', rotation=270)
-    
+    cbar = plt.colorbar(im, cax=cax, label="Kappa [arb]")
+
     plt.show()
-    return(0)
