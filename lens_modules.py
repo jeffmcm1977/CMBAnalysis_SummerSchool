@@ -122,7 +122,7 @@ def sky2pix(pos, N, pix_size):
 
 
 def get_theory():
-    ells, tt, _, _, pp, _ = np.loadtxt("CAMB_fiducial_cosmo_scalCls.dat", unpack=True)
+    ells, tt, _, _, pp, _ = np.loadtxt("CAMB_fiducial_cosmo_scalCls_for_lensing.dat", unpack=True)
     TCMB2 = 7.4311e12
     ckk = pp / 4.0 / TCMB2
     ucltt = tt / ells / (ells + 1.0) * 2.0 * np.pi
